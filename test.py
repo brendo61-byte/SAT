@@ -29,9 +29,15 @@ class SAT:
 
         self.vars = {}
 
-        self.solutions = []
+        self.solutions = {}
+        self.masterSolutionSet = []
 
         self.makeDict()
+        self.makeSolutions()
+
+    def makeSolutions(self):
+        for key in self.vars.keys():
+            self.solutions[key] = []
 
     def makeDict(self):
         """
@@ -163,12 +169,8 @@ class SAT:
         :param vars:
         :return:
         """
-        boolList = []
 
-        for item in pair:
-            boolList.append(self.getBool(val=item, vars=vars))
-
-        # print(f"\n{self.vars}\n{pair}\n{boolList}")
+        boolList = self.getBoolList(pair=pair, vars=vars)
 
         if True in boolList:
             return True
@@ -178,6 +180,14 @@ class SAT:
 
         else:
             return False
+
+    def getBoolList(self, pair, vars):
+        tempList = []
+
+        for item in pair:
+            tempList.append(self.getBool(val=item, vars=vars))
+
+        return tempList
 
     def checkClauses(self, vars, clauses):
         """
@@ -237,8 +247,15 @@ class SAT:
 
         for result, val in zip(results, clauses):
             if result:
-                for solution in self.getVarValues(vars=vars, val=val):
-                    tempVar.append(solution)
+                varVals = self.getVarValues(vars=vars, val=val)
+                boolList = self.getBoolList(vars=vars, pair=val)
+
+                while None in boolList:
+                    boolList.remove(None)
+
+                for solution, status in zip(varVals, boolList):
+                    if status:
+                        tempVar.append(solution)
 
                 tempClauses.remove(val)
 
@@ -297,12 +314,27 @@ class SAT:
 
         self.tree(key=keyList[0], vars=vars, clauses=clauses, keyList=keyList)
 
+    def formatSolutions(self):
+        for key in self.solutions.keys():
+            solutionList = self.solutions.get(key)
+
+            for item in solutionList:
+                self.masterSolutionSet.append(item)
+
     def tree(self, key, vars, clauses, keyList, solutionSet=None):
         if solutionSet is None:
             solutionSet = []
 
         print("\nBranch Pos")
-        self.posSolver(vars=vars, clauses=clauses, key=key, keyList=keyList, solutionSet=solutionSet)
+        self.posSolver(vars=vars, clauses=clauses, key=key, keyList=keyList, solutionSet=self.solutions)
+
+        print()
+        # self.formatSolutions()
+        for thing in self.masterSolutionSet:
+            print(thing)
+        # print(self.solutions)
+
+        exit()
         print("\nBranch Neg")
         self.negSolver(vars=vars, clauses=clauses, key=key, keyList=keyList, solutionSet=solutionSet)
 
@@ -317,13 +349,13 @@ class SAT:
         self.solver(vars=vars, clauses=clauses, key=key, keyList=keyList, solutionSet=solutionSet)
 
     def solver(self, vars, clauses, key, keyList, solutionSet):
-        #  print(vars)
         remainingClauses, currentSolutionSet = run.preBranch(vars=vars, clauses=clauses)
-
+        # print(currentSolutionSet)
+        # print(vars)
+        # print()
         if currentSolutionSet:
-            if currentSolutionSet not in self.solutions:
-                self.solutions.append(currentSolutionSet)
-                print(self.solutions)
+            if currentSolutionSet not in solutionSet.get(key):
+                solutionSet[key].append(currentSolutionSet)
 
         if remainingClauses:
             keyList.remove(key)
@@ -332,6 +364,13 @@ class SAT:
             self.negSolver(key=key, vars=vars, clauses=remainingClauses, keyList=keyList, solutionSet=solutionSet)
 
         print(solutionSet)
+        print(self.masterSolutionSet)
+        print(solutionSet not in self.masterSolutionSet)
+        print()
+
+        if solutionSet not in self.masterSolutionSet:
+            self.masterSolutionSet.append(solutionSet.copy())
+
 
         # return solutionSet
 
