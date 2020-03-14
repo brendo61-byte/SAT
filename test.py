@@ -1,4 +1,4 @@
-CLAUSE_LIST = [(0, 2), (3, 4)]
+CLAUSE_LIST = [(1,), (0,)]
 N = 3
 A = 65
 
@@ -31,9 +31,12 @@ class SAT:
 
         self.solutions = {}
         self.masterSolutionSet = []
+        self.final = []
 
         self.makeDict()
         self.makeSolutions()
+
+        self.neg = False
 
     def makeSolutions(self):
         for key in self.vars.keys():
@@ -255,12 +258,20 @@ class SAT:
 
                 for solution, status in zip(varVals, boolList):
                     if status:
-                        tempVar.append(solution)
+                        temp = solution.split("=")[0]
+                        kelVal = vars.get(temp)
+
+                        if kelVal:
+                            newResult = f"{temp}=1"
+                            tempVar.append(newResult)
+                        else:
+                            newResult = f"{temp}=0"
+                            tempVar.append(newResult)
 
                 tempClauses.remove(val)
 
             if result is False:
-                tempClauses.remove(val)
+                return None, None
 
         return tempClauses, tempVar
 
@@ -314,6 +325,21 @@ class SAT:
 
         self.tree(key=keyList[0], vars=vars, clauses=clauses, keyList=keyList)
 
+
+        print("\n____Solution Set____")
+
+        if self.final:
+            for count, thing in enumerate(self.final):
+                count += 1
+                val = f"Solution {count}: "
+                for item in thing:
+                    val += f"{item}, "
+
+                print(val[:-2])
+
+        else:
+            print("No solutions exist.")
+
     def formatSolutions(self):
         for key in self.solutions.keys():
             solutionList = self.solutions.get(key)
@@ -322,21 +348,34 @@ class SAT:
                 self.masterSolutionSet.append(item)
 
     def tree(self, key, vars, clauses, keyList, solutionSet=None):
+        keyListA = keyList.copy()
+        keyListB = keyList.copy()
+        keyCopyA = key
+        keyCopyB = key
+
         if solutionSet is None:
             solutionSet = []
 
-        print("\nBranch Pos")
-        self.posSolver(vars=vars, clauses=clauses, key=key, keyList=keyList, solutionSet=self.solutions)
+        self.posSolver(vars=vars, clauses=clauses, key=keyCopyA, keyList=keyListA, solutionSet=self.solutions)
 
-        print()
-        # self.formatSolutions()
-        for thing in self.masterSolutionSet:
-            print(thing)
-        # print(self.solutions)
+        vars = self.varReset(vars=vars)
 
-        exit()
-        print("\nBranch Neg")
-        self.negSolver(vars=vars, clauses=clauses, key=key, keyList=keyList, solutionSet=solutionSet)
+        for key in self.solutions:
+            self.solutions[key] = []
+
+        self.negSolver(vars=vars, clauses=clauses, key=keyCopyB, keyList=keyListB, solutionSet=self.solutions)
+
+    def solutionReset(self):
+        for item in self.masterSolutionSet:
+            tempVal = item
+            for key in item.keys():
+                tempVal[key] = []
+
+    def varReset(self, vars):
+        for key in vars.keys():
+            vars[key] = None
+
+        return vars
 
     def posSolver(self, vars, clauses, key, keyList, solutionSet):
         vars[key] = True
@@ -349,10 +388,18 @@ class SAT:
         self.solver(vars=vars, clauses=clauses, key=key, keyList=keyList, solutionSet=solutionSet)
 
     def solver(self, vars, clauses, key, keyList, solutionSet):
+        reset = False
+        for tempKey in vars.keys():
+            if reset:
+                vars[tempKey] = None
+            if tempKey == key:
+                reset = True
+
         remainingClauses, currentSolutionSet = run.preBranch(vars=vars, clauses=clauses)
-        # print(currentSolutionSet)
-        # print(vars)
-        # print()
+
+        if remainingClauses is None:
+            return
+
         if currentSolutionSet:
             if currentSolutionSet not in solutionSet.get(key):
                 solutionSet[key].append(currentSolutionSet)
@@ -360,19 +407,19 @@ class SAT:
         if remainingClauses:
             keyList.remove(key)
             key = keyList[0]
-            self.posSolver(key=key, vars=vars, clauses=remainingClauses, keyList=keyList, solutionSet=solutionSet)
-            self.negSolver(key=key, vars=vars, clauses=remainingClauses, keyList=keyList, solutionSet=solutionSet)
+            self.posSolver(key=key, vars=vars, clauses=remainingClauses.copy(), keyList=keyList, solutionSet={k: v.copy() for k, v in solutionSet.items()})
+            self.negSolver(key=key, vars=vars, clauses=remainingClauses.copy(), keyList=keyList, solutionSet={k: v.copy() for k, v in solutionSet.items()})
 
-        print(solutionSet)
-        print(self.masterSolutionSet)
-        print(solutionSet not in self.masterSolutionSet)
-        print()
+        else:
+            tempSolutions = []
+            for key in solutionSet.keys():
+                tempList = solutionSet.get(key)
+                for solutionList in tempList:
+                    for item in solutionList:
+                        tempSolutions.append(item)
 
-        if solutionSet not in self.masterSolutionSet:
-            self.masterSolutionSet.append(solutionSet.copy())
-
-
-        # return solutionSet
+            if tempSolutions not in self.final and tempSolutions:
+                self.final.append(tempSolutions)
 
 
 if __name__ == '__main__':
